@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pashu Pehchan - Authorities Dashboard</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Inter font from Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Leaflet.js CSS for Interactive Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+    <style>
+        /* Custom styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* A light grey background */
+        }
+        .sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+        .main-content {
+            transition: margin-left 0.3s ease-in-out;
+        }
+        .sidebar-closed {
+            transform: translateX(-100%);
+        }
+        .main-content-expanded {
+            margin-left: 0;
+        }
+        @media (min-width: 1024px) {
+            .main-content-expanded {
+                margin-left: 16rem; /* Default sidebar width */
+            }
+        }
+        /* Leaflet map container style */
+        #map, #geospatialMap {
+            height: 100%;
+            width: 100%;
+            border-radius: 0.5rem; /* rounded-lg */
+            z-index: 10;
+        }
+        /* Style for active nav link */
+        .nav-link.active {
+            background-color: #4a5568; /* bg-gray-700 */
+        }
+        .nav-link.active .fa-solid,
+        .nav-link.active i {
+             color: #2dd4bf; /* text-cyan-400 */
+        }
+        /* Custom searchable dropdown */
+        .searchable-dropdown-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        /* Toggle switch */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #06b6d4;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #06b6d4;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Sidebar Navigation -->
+    <aside id="sidebar" class="bg-gray-800 text-white w-64 fixed inset-y-0 left-0 z-40 transform lg:transform-none transition-transform duration-300 ease-in-out">
+        <div class="p-5 border-b border-gray-700 flex items-center">
+            <i class="fas fa-paw text-2xl mr-3 text-cyan-400"></i>
+            <h1 class="text-xl font-bold">Pashu Pehchan</h1>
+        </div>
+        <nav class="mt-5" id="navigation-menu">
+            <a href="#dashboard" class="nav-link flex items-center px-6 py-3 text-gray-300 hover:bg-gray-700 active">
+                <i class="fas fa-tachometer-alt w-6"></i>
+                <span class="ml-4">Dashboard</span>
+            </a>
+            <a href="#geospatial" class="nav-link flex items-center px-6 py-3 text-gray-300 hover:bg-gray-700">
+                <i class="fas fa-map-marked-alt w-6"></i>
+                <span class="ml-4">Geospatial Map</span>
+            </a>
+            <a href="#reports" class="nav-link flex items-center px-6 py-3 text-gray-300 hover:bg-gray-700">
+                <i class="fas fa-chart-bar w-6"></i>
+                <span class="ml-4">Reports</span>
+            </a>
+            <a href="#workers" class="nav-link flex items-center px-6 py-3 text-gray-300 hover:bg-gray-700">
+                <i class="fas fa-users w-6"></i>
+                <span class="ml-4">Field Workers</span>
+            </a>
+            <a href="#settings" class="nav-link flex items-center px-6 py-3 text-gray-300 hover:bg-gray-700">
+                <i class="fas fa-cog w-6"></i>
+                <span class="ml-4">Settings</span>
+            </a>
+        </nav>
+        <div class="absolute bottom-0 w-full p-6">
+            <a href="#" class="flex items-center text-gray-400 hover:text-white">
+                <i class="fas fa-sign-out-alt w-6"></i>
+                <span class="ml-4">Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div id="main-content" class="ml-0 lg:ml-64 p-6 md:p-8 transition-all duration-300 ease-in-out">
+        
+        <!-- View: Dashboard -->
+        <main id="dashboard-view" class="view">
+            <!-- Header -->
+            <header class="flex justify-between items-center mb-8">
+                <div>
+                    <button id="menu-btn" class="lg:hidden text-gray-600">
+                        <i class="fas fa-bars text-2xl"></i>
+                    </button>
+                    <h2 class="text-3xl font-bold text-gray-800 hidden md:block">Welcome, Administrator</h2>
+                    <p class="text-gray-500 hidden md:block">Here's the real-time overview of animal registration and breed data.</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="relative">
+                        <input type="text" placeholder="Search Animal ID..." class="bg-white border border-gray-300 rounded-full py-2 px-4 pl-10 focus:outline-none focus:ring-2 focus:ring-cyan-500 w-32 sm:w-64">
+                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                    <button class="relative text-gray-600">
+                        <i class="fas fa-bell text-xl"></i>
+                        <span class="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full"></span>
+                    </button>
+                    <div>
+                        <img src="https://placehold.co/40x40/E2E8F0/4A5568?text=A" alt="Admin" class="w-10 h-10 rounded-full">
+                    </div>
+                </div>
+            </header>
+
+            <!-- Key Metrics Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Total Animals Registered</p>
+                        <p id="total-animals-count" class="text-3xl font-bold text-gray-800">1,254,890</p>
+                        <p class="text-green-500 text-sm mt-1">+12% this month</p>
+                    </div>
+                    <div class="bg-cyan-100 text-cyan-600 p-4 rounded-full">
+                        <i class="fas fa-hippo text-2xl"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Cattle Registered</p>
+                        <p class="text-3xl font-bold text-gray-800">878,423</p>
+                        <p class="text-green-500 text-sm mt-1">+15% this month</p>
+                    </div>
+                    <div class="bg-orange-100 text-orange-600 p-4 rounded-full">
+                        <i class="fas fa-cow text-2xl"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Buffaloes Registered</p>
+                        <p class="text-3xl font-bold text-gray-800">376,467</p>
+                        <p class="text-green-500 text-sm mt-1">+8% this month</p>
+                    </div>
+                    <div class="bg-indigo-100 text-indigo-600 p-4 rounded-full">
+                         <i class="fas fa-water text-2xl"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">AI Accuracy</p>
+                        <p class="text-3xl font-bold text-gray-800">96.8%</p>
+                        <p class="text-gray-500 text-sm mt-1">vs Manual Entries</p>
+                    </div>
+                    <div class="bg-emerald-100 text-emerald-600 p-4 rounded-full">
+                        <i class="fas fa-robot text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts and Map Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                <!-- Breed Distribution Chart -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-md flex flex-col">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Breed Distribution (Top 10)</h3>
+                    <div class="relative" style="height: 320px;">
+                        <div id="chart-loader" class="absolute inset-0 flex items-center justify-center z-10">
+                            <i class="fas fa-spinner fa-spin text-4xl text-cyan-600"></i>
+                        </div>
+                        <canvas id="breedChart"></canvas>
+                    </div>
+                </div>
+                <!-- Geospatial Distribution Map -->
+                <div class="bg-white p-6 rounded-2xl shadow-md flex flex-col">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Geospatial Distribution</h3>
+                    <div class="flex-grow h-64 md:h-auto">
+                         <div id="map"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Registrations Table -->
+            <div class="bg-white p-6 rounded-2xl shadow-md">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">Recent Registrations</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-sm font-semibold text-gray-500 border-b">
+                                <th class="p-4">Animal ID</th>
+                                <th class="p-4">Breed (AI Suggestion)</th>
+                                <th class="p-4">Confidence</th>
+                                <th class="p-4">Location</th>
+                                <th class="p-4">Field Worker</th>
+                                <th class="p-4">Timestamp</th>
+                                <th class="p-4">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-gray-700">
+                            <tr>
+                                <td class="p-4 font-medium">#Cattle-78A5B</td>
+                                <td class="p-4">Gir</td>
+                                <td class="p-4 text-green-600">98.2%</td>
+                                <td class="p-4">Anand, Gujarat</td>
+                                <td class="p-4">Ramesh Kumar</td>
+                                <td class="p-4">2025-09-18 19:32</td>
+                                <td class="p-4"><span class="bg-green-100 text-green-700 py-1 px-3 rounded-full text-xs font-semibold">Verified</span></td>
+                            </tr>
+                            <tr class="bg-gray-50">
+                                <td class="p-4 font-medium">#Buffalo-92C4F</td>
+                                <td class="p-4">Murrah</td>
+                                <td class="p-4 text-green-600">95.1%</td>
+                                <td class="p-4">Rohtak, Haryana</td>
+                                <td class="p-4">Sunita Devi</td>
+                                <td class="p-4">2025-09-18 19:28</td>
+                                <td class="p-4"><span class="bg-green-100 text-green-700 py-1 px-3 rounded-full text-xs font-semibold">Verified</span></td>
+                            </tr>
+                            <tr>
+                                <td class="p-4 font-medium">#Cattle-45D8E</td>
+                                <td class="p-4">Sahiwal</td>
+                                <td class="p-4 text-orange-600">85.5%</td>
+                                <td class="p-4">Ludhiana, Punjab</td>
+                                <td class="p-4">Amit Singh</td>
+                                <td class="p-4">2025-09-18 19:15</td>
+                                <td class="p-4"><span class="bg-yellow-100 text-yellow-700 py-1 px-3 rounded-full text-xs font-semibold">Pending</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <!-- View: Geospatial Report -->
+        <main id="geospatial-view" class="view hidden">
+             <header class="flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold text-gray-800">Geospatial Report</h2>
+                    <p class="text-gray-500">Filter and analyze breed distribution by region.</p>
+                </div>
+            </header>
+            
+            <!-- Filter Section -->
+            <div class="bg-white p-6 rounded-2xl shadow-md mb-8">
+                 <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 items-end">
+                    <!-- Custom Searchable Dropdown for State -->
+                    <div class="relative" id="state-dropdown-container">
+                        <label for="state-search" class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                        <div class="relative">
+                            <input type="text" id="state-search" placeholder="Select State" class="w-full p-2 border border-gray-300 rounded-md focus:ring-cyan-500 focus:border-cyan-500" autocomplete="off">
+                            <i class="fas fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+                        </div>
+                        <div id="state-list" class="searchable-dropdown-list absolute hidden w-full bg-white border border-gray-300 rounded-md mt-1 z-20">
+                            <!-- State options will be populated by JS -->
+                        </div>
+                    </div>
+                    
+                    <!-- Custom Searchable Dropdown for District -->
+                    <div class="relative" id="district-dropdown-container">
+                        <label for="district-search" class="block text-sm font-medium text-gray-700 mb-1">District</label>
+                         <div class="relative">
+                            <input type="text" id="district-search" placeholder="Select District" class="w-full p-2 border border-gray-300 rounded-md focus:ring-cyan-500 focus:border-cyan-500" autocomplete="off" disabled>
+                            <i class="fas fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+                        </div>
+                        <div id="district-list" class="searchable-dropdown-list absolute hidden w-full bg-white border border-gray-300 rounded-md mt-1 z-20">
+                           <!-- District options will be populated by JS -->
+                        </div>
+                    </div>
+                    
+                    <div class="md:col-start-3 lg:col-start-4">
+                        <button id="filter-btn" class="w-full bg-cyan-600 text-white font-bold py-2 px-4 rounded-md hover:bg-cyan-700 transition-colors">
+                            Apply Filter
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Summary Section -->
+            <div id="geospatial-summary" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-2xl shadow-md">
+                    <p class="text-gray-500 text-sm font-medium">Total Registrations in Area</p>
+                    <p id="summary-total" class="text-3xl font-bold text-gray-800">---</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-md">
+                    <p class="text-gray-500 text-sm font-medium">Most Common Breed</p>
+                    <p id="summary-breed" class="text-3xl font-bold text-gray-800">---</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-md">
+                    <p class="text-gray-500 text-sm font-medium">Latest Registration</p>
+                    <p id="summary-date" class="text-3xl font-bold text-gray-800">---</p>
+                </div>
+            </div>
+
+            <!-- Map Display -->
+            <div class="bg-white p-6 rounded-2xl shadow-md">
+                <div class="h-96 md:h-[600px] w-full">
+                    <div id="geospatialMap"></div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- View: Reports -->
+        <main id="reports-view" class="view hidden">
+            <header class="flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold text-gray-800">Generate Custom Reports</h2>
+                    <p class="text-gray-500">Select your criteria to generate a downloadable report.</p>
+                </div>
+            </header>
+
+            <div class="bg-white p-8 rounded-2xl shadow-md">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
+                    <!-- Report Type -->
+                    <div>
+                        <label for="report-type" class="block text-sm font-medium text-gray-700 mb-1">Report Type</label>
+                        <select id="report-type" class="w-full p-2 border border-gray-300 rounded-md focus:ring-cyan-500 focus:border-cyan-500">
+                            <option>Breed Distribution Census</option>
+                            <option>AI Model Accuracy Analysis</option>
+                            <option>Field Worker Activity Log</option>
+                        </select>
+                    </div>
+
+                    <!-- Date Range -->
+                    <div>
+                        <label for="report-daterange" class="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
+                        <select id="report-daterange" class="w-full p-2 border border-gray-300 rounded-md focus:ring-cyan-500 focus:border-cyan-500">
+                            <option>Last 30 Days</option>
+                            <option>Last 90 Days</option>
+                            <option>This Year</option>
+                            <option>All Time</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Export Format -->
+                    <div>
+                        <label for="report-format" class="block text-sm font-medium text-gray-700 mb-1">Export Format</label>
+                        <select id="report-format" class="w-full p-2 border border-gray-300 rounded-md focus:ring-cyan-500 focus:border-cyan-500">
+                            <option>PDF</option>
+                            <option>CSV (Excel)</option>
+                        </select>
+                    </div>
+
+                    <!-- Location Filters -->
+                    <div class="relative md:col-span-2 lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div id="report-state-container">
+                            <label for="report-state-search" class="block text-sm font-medium text-gray-700 mb-1">State (Optional)</label>
+                            <div class="relative">
+                                <input type="text" id="report-state-search" placeholder="All States" class="w-full p-2 border border-gray-300 rounded-md focus:ring-cyan-500 focus:border-cyan-500" autocomplete="off">
+                                <i class="fas fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+                            </div>
+                            <div id="report-state-list" class="searchable-dropdown-list absolute hidden w-full bg-white border border-gray-300 rounded-md mt-1 z-20"></div>
+                        </div>
+                        <div id="report-district-container">
+                            <label for="report-district-search" class="block text-sm font-medium text-gray-700 mb-1">District (Optional)</label>
+                             <div class="relative">
+                                <input type="text" id="report-district-search" placeholder="All Districts" class="w-full p-2 border border-gray-300 rounded-md focus:ring-cyan-500 focus:border-cyan-500" autocomplete="off" disabled>
+                                <i class="fas fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+                            </div>
+                            <div id="report-district-list" class="searchable-dropdown-list absolute hidden w-full bg-white border border-gray-300 rounded-md mt-1 z-20"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Generate Button -->
+                    <div class="lg:col-start-3">
+                         <button id="generate-report-btn" class="w-full bg-cyan-600 text-white font-bold py-2 px-4 rounded-md hover:bg-cyan-700 transition-colors flex items-center justify-center">
+                            <i class="fas fa-cogs mr-2"></i> Generate Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Report Status Section -->
+            <div id="report-status" class="mt-8 text-center hidden">
+                <div class="bg-white p-8 rounded-2xl shadow-md inline-block">
+                    <div id="report-spinner" class="mb-4">
+                        <i class="fas fa-spinner fa-spin text-4xl text-cyan-600"></i>
+                        <p class="mt-2 text-gray-600 font-medium">Generating your report, please wait...</p>
+                    </div>
+                    <div id="report-success" class="hidden">
+                         <i class="fas fa-check-circle text-5xl text-green-500 mb-4"></i>
+                         <h3 id="report-success-title" class="text-xl font-bold text-gray-800">Report Generated!</h3>
+                         <p id="report-success-message" class="text-gray-600 mt-2 mb-4"></p>
+                         <a href="#" download="report.pdf" id="download-report-link" class="bg-green-500 text-white font-bold py-2 px-6 rounded-md hover:bg-green-600 transition-colors inline-flex items-center">
+                            <i class="fas fa-download mr-2"></i> Download
+                         </a>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+        
+        <!-- View: Field Workers -->
+        <main id="workers-view" class="view hidden">
+            <header class="flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold text-gray-800">Field Worker Management</h2>
+                    <p class="text-gray-500">Monitor and manage your field personnel.</p>
+                </div>
+                <button id="add-worker-btn" class="bg-cyan-600 text-white font-bold py-2 px-4 rounded-md hover:bg-cyan-700 transition-colors flex items-center">
+                    <i class="fas fa-plus mr-2"></i> Add New Worker
+                </button>
+            </header>
+            
+            <div class="bg-white p-6 rounded-2xl shadow-md">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">All Field Workers</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-sm font-semibold text-gray-500 border-b">
+                                <th class="p-4">Worker ID</th>
+                                <th class="p-4">Name</th>
+                                <th class="p-4">Assigned Area</th>
+                                <th class="p-4">Registrations</th>
+                                <th class="p-4">Status</th>
+                                <th class="p-4 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="worker-table-body" class="text-gray-700 divide-y">
+                            <tr>
+                                <td class="p-4 font-medium">FW-1023</td>
+                                <td class="p-4">Ramesh Kumar</td>
+                                <td class="p-4">Anand, Gujarat</td>
+                                <td class="p-4">1,245</td>
+                                <td class="p-4 status-cell"><span class="bg-green-100 text-green-700 py-1 px-3 rounded-full text-xs font-semibold">Active</span></td>
+                                <td class="p-4 text-center space-x-2 action-cell">
+                                    <button class="text-blue-500 hover:text-blue-700" title="Edit Worker"><i class="fas fa-edit"></i></button>
+                                    <button class="text-red-500 hover:text-red-700" title="Deactivate Worker"><i class="fas fa-user-slash"></i></button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="p-4 font-medium">FW-1024</td>
+                                <td class="p-4">Sunita Devi</td>
+                                <td class="p-4">Rohtak, Haryana</td>
+                                <td class="p-4">987</td>
+                                <td class="p-4 status-cell"><span class="bg-green-100 text-green-700 py-1 px-3 rounded-full text-xs font-semibold">Active</span></td>
+                                <td class="p-4 text-center space-x-2 action-cell">
+                                    <button class="text-blue-500 hover:text-blue-700" title="Edit Worker"><i class="fas fa-edit"></i></button>
+                                    <button class="text-red-500 hover:text-red-700" title="Deactivate Worker"><i class="fas fa-user-slash"></i></button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="p-4 font-medium">FW-1025</td>
+                                <td class="p-4">Amit Singh</td>
+                                <td class="p-4">Ludhiana, Punjab</td>
+                                <td class="p-4">1,532</td>
+                                <td class="p-4 status-cell"><span class="bg-green-100 text-green-700 py-1 px-3 rounded-full text-xs font-semibold">Active</span></td>
+                                <td class="p-4 text-center space-x-2 action-cell">
+                                    <button class="text-blue-500 hover:text-blue-700" title="Edit Worker"><i class="fas fa-edit"></i></button>
+                                    <button class="text-red-500 hover:text-red-700" title="Deactivate Worker"><i class="fas fa-user-slash"></i></button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="p-4 font-medium">FW-1026</td>
+                                <td class="p-4">Priya Sharma</td>
+                                <td class="p-4">Jaipur, Rajasthan</td>
+                                <td class="p-4">765</td>
+                                <td class="p-4 status-cell"><span class="bg-gray-200 text-gray-700 py-1 px-3 rounded-full text-xs font-semibold">Inactive</span></td>
+                                <td class="p-4 text-center space-x-2 action-cell">
+                                    <button class="text-blue-500 hover:text-blue-700" title="Edit Worker"><i class="fas fa-edit"></i></button>
+                                    <button class="text-green-500 hover:text-green-700" title="Activate Worker"><i class="fas fa-user-check"></i></button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+        <main id="settings-view" class="view hidden">
+             <header class="flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold text-gray-800">Settings</h2>
+                    <p class="text-gray-500">Manage your account and system preferences.</p>
+                </div>
+            </header>
+            
+            <div class="space-y-8">
+                <!-- Account Settings -->
+                <div class="bg-white p-8 rounded-2xl shadow-md">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6">Account Settings</h3>
+                    <form class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="admin-name" class="block text-sm font-medium text-gray-700 mb-1">Admin Name</label>
+                                <input type="text" id="admin-name" value="Administrator" class="w-full p-2 border border-gray-300 rounded-md focus:ring-cyan-500 focus:border-cyan-500">
+                            </div>
+                            <div>
+                                <label for="admin-email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                                <input type="email" id="admin-email" value="admin@pashupehchan.gov.in" class="w-full p-2 border border-gray-300 rounded-md focus:ring-cyan-500 focus:border-cyan-500">
+                            </div>
+                        </div>
+                        <div>
+                            <button type="button" class="text-cyan-600 font-semibold hover:underline">Change Password</button>
+                        </div>
+                        <div class="pt-4 text-right">
+                            <button type="submit" class="px-6 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- System Settings -->
+                 <div class="bg-white p-8 rounded-2xl shadow-md">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6">System Settings</h3>
+                    <div class="space-y-6">
+                        <div>
+                            <label for="ai-threshold" class="block text-sm font-medium text-gray-700 mb-1">AI Confidence Threshold</label>
+                            <p class="text-xs text-gray-500 mb-2">Suggestions below this value will require mandatory manual review.</p>
+                            <select id="ai-threshold" class="w-full md:w-1/3 p-2 border border-gray-300 rounded-md focus:ring-cyan-500 focus:border-cyan-500">
+                                <option>80%</option>
+                                <option selected>85%</option>
+                                <option>90%</option>
+                                <option>95%</option>
+                            </select>
+                        </div>
+                         <div class="border-t pt-6">
+                            <h4 class="text-md font-semibold text-gray-700">Data Management</h4>
+                            <div class="flex items-center space-x-4 mt-4">
+                                <button class="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700">
+                                    <i class="fas fa-database mr-2"></i>Backup Database
+                                </button>
+                                <button class="px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700">
+                                    <i class="fas fa-archive mr-2"></i>Archive Old Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                 <!-- Notification Settings -->
+                <div class="bg-white p-8 rounded-2xl shadow-md">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6">Notification Settings</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="font-medium text-gray-700">Email Notifications</p>
+                                <p class="text-sm text-gray-500">Receive weekly summary reports via email.</p>
+                            </div>
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggle" id="email-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" checked/>
+                                <label for="email-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                            </div>
+                        </div>
+                         <div class="flex items-center justify-between">
+                            <div>
+                                <p class="font-medium text-gray-700">Push Notifications</p>
+                                <p class="text-sm text-gray-500">Get alerts for critical system events on your devices.</p>
+                            </div>
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggle" id="push-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                                <label for="push-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmation-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center flex">
+        <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-sm m-4">
+            <h3 id="modal-title" class="text-xl font-bold text-gray-800 mb-4">Confirm Action</h3>
+            <p id="modal-body" class="text-gray-600 mb-6">Are you sure you want to proceed?</p>
+            <div class="flex justify-end space-x-4">
+                <button id="modal-cancel-btn" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors">Cancel</button>
+                <button id="modal-confirm-btn" class="px-6 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Worker Modal -->
+    <div id="edit-worker-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center flex">
+        <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-lg m-4">
+            <h3 class="text-xl font-bold text-gray-800 mb-6">Edit Field Worker Details</h3>
+            <form id="edit-worker-form">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="edit-worker-id" class="block text-sm font-medium text-gray-700 mb-1">Worker ID</label>
+                        <input type="text" id="edit-worker-id" class="w-full p-2 bg-gray-100 border border-gray-300 rounded-md" readonly>
+                    </div>
+                    <div>
+                        <label for="edit-worker-name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                        <input type="text" id="edit-worker-name" class="w-full p-2 border border-gray-300 rounded-md focus:ring-cyan-500 focus:border-cyan-500">
+                    </div>
+                    <!-- State Dropdown -->
+                    <div class="relative" id="edit-state-container">
+                        <label for="edit-state-search" class="block text-sm font-medium text-gray-700 mb-1">Assigned State</label>
+                        <div class="relative">
+                            <input type="text" id="edit-state-search" placeholder="Select State" class="w-full p-2 border border-gray-300 rounded-md focus:ring-cyan-500 focus:border-cyan-500" autocomplete="off">
+                             <i class="fas fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+                        </div>
+                        <div id="edit-state-list" class="searchable-dropdown-list absolute hidden w-full bg-white border border-gray-300 rounded-md mt-1 z-30"></div>
+                    </div>
+                    <!-- District Dropdown -->
+                    <div class="relative" id="edit-district-container">
+                        <label for="edit-district-search" class="block text-sm font-medium text-gray-700 mb-1">Assigned District</label>
+                         <div class="relative">
+                            <input type="text" id="edit-district-search" placeholder="Select District" class="w-full p-2 border border-gray-300 rounded-md focus:ring-cyan-500 focus:border-cyan-500" autocomplete="off" disabled>
+                             <i class="fas fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+                        </div>
+                        <div id="edit-district-list" class="searchable-dropdown-list absolute hidden w-full bg-white border border-gray-300 rounded-md mt-1 z-30"></div>
+                    </div>
+                </div>
+                <div class="mt-8 flex justify-end space-x-4">
+                    <button type="button" id="edit-modal-cancel-btn" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors">Cancel</button>
+                    <button type="submit" class="px-6 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Worker Modal -->
+    <div id="add-worker-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center flex">
+        <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-lg m-4">
+            <h3 class="text-xl font-bold text-gray-800 mb-6">Add New Field Worker</h3>
+            <form id="add-worker-form">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div>
+                        <label for="add-worker-name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                        <input type="text" id="add-worker-name" placeholder="Enter full name" class="w-full p-2 border border-gray-300 rounded-md focus:ring-cyan-500 focus:border-cyan-500" required>
+                    </div>
+                     <div>
+                        <!-- Placeholder for alignment -->
+                    </div>
+                    <!-- State Dropdown -->
+                    <div class="relative" id="add-state-container">
+                        <label for="add-state-search" class="block text-sm font-medium text-gray-700 mb-1">Assigned State</label>
+                        <div class="relative">
+                            <input type="text" id="add-state-search" placeholder="Select State" class="w-full p-2 border border-gray-300 rounded-md focus:ring-cyan-500 focus:border-cyan-500" autocomplete="off" required>
+                             <i class="fas fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+                        </div>
+                        <div id="add-state-list" class="searchable-dropdown-list absolute hidden w-full bg-white border border-gray-300 rounded-md mt-1 z-30"></div>
+                    </div>
+                    <!-- District Dropdown -->
+                    <div class="relative" id="add-district-container">
+                        <label for="add-district-search" class="block text-sm font-medium text-gray-700 mb-1">Assigned District</label>
+                         <div class="relative">
+                            <input type="text" id="add-district-search" placeholder="Select District" class="w-full p-2 border border-gray-300 rounded-md focus:ring-cyan-500 focus:border-cyan-500" autocomplete="off" disabled required>
+                             <i class="fas fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+                        </div>
+                        <div id="add-district-list" class="searchable-dropdown-list absolute hidden w-full bg-white border border-gray-300 rounded-md mt-1 z-30"></div>
+                    </div>
+                </div>
+                <div class="mt-8 flex justify-end space-x-4">
+                    <button type="button" id="add-modal-cancel-btn" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors">Cancel</button>
+                    <button type="submit" class="px-6 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors">Add Worker</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Leaflet.js script -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // --- Common Elements ---
+            const menuBtn = document.getElementById('menu-btn');
+            const sidebar = document.getElementById('sidebar');
+            
+            // --- SPA Navigation Logic ---
+            const navLinks = document.querySelectorAll('.nav-link');
+            const views = document.querySelectorAll('.view');
+            
+            function switchView(hash) {
+                views.forEach(view => view.classList.add('hidden'));
+                navLinks.forEach(link => link.classList.remove('active'));
+
+                const activeView = document.getElementById(hash.substring(1) + '-view');
+                const activeLink = document.querySelector(`.nav-link[href="${hash}"]`);
+
+                if (activeView) activeView.classList.remove('hidden');
+                if (activeLink) activeLink.classList.add('active');
+            }
+            
+            navLinks.forEach(link => {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const hash = this.getAttribute('href');
+                    window.location.hash = hash;
+                });
+            });
+            
+            window.addEventListener('hashchange', () => switchView(window.location.hash));
+            // Initial view load based on hash or default to #dashboard
+            switchView(window.location.hash || '#dashboard');
+
+
+            // --- Sidebar Toggle ---
+            menuBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('sidebar-closed');
+            });
+
+            // --- Dashboard Specific Logic ---
+            const chartLoader = document.getElementById('chart-loader');
+            const breedChartCanvas = document.getElementById('breedChart');
+            const totalAnimalsEl = document.getElementById('total-animals-count');
+            let breedChart;
+            let chartUpdateInterval;
+
+            function initDashboard() {
+                // Initialize dashboard map
+                setTimeout(() => {
+                    if (document.getElementById('map')._leaflet_id) return;
+                    const map = L.map('map').setView([22.5937, 78.9629], 5);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    }).addTo(map);
+                    const animalData = [{ lat: 23.2599, lng: 77.4126, city: 'Bhopal', breed: 'Gir', count: 150 }];
+                    animalData.forEach(animal => {
+                        L.marker([animal.lat, animal.lng]).addTo(map).bindPopup(`<b>${animal.city}</b>`);
+                    });
+                }, 100);
+
+                // Initialize and animate chart
+                setTimeout(() => {
+                    chartLoader.style.display = 'none';
+                    if (breedChart) return;
+                    const ctx = breedChartCanvas.getContext('2d');
+                    breedChart = new Chart(ctx, { type: 'bar', data: {
+                        labels: ['Gir', 'Sahiwal', 'Red Sindhi', 'Murrah', 'Jaffarabadi', 'Kangayam', 'Ongole', 'Tharparkar', 'Deoni', 'Nili-Ravi'],
+                        datasets: [{
+                            label: 'Number of Animals',
+                            data: [12000, 9500, 8000, 15000, 7500, 6000, 5500, 5000, 4500, 4000],
+                            backgroundColor: ['rgba(22, 163, 163, 0.7)', 'rgba(234, 88, 12, 0.7)', 'rgba(220, 38, 38, 0.7)', 'rgba(79, 70, 229, 0.7)', 'rgba(147, 51, 234, 0.7)', 'rgba(217, 119, 6, 0.7)', 'rgba(5, 150, 105, 0.7)', 'rgba(59, 130, 246, 0.7)', 'rgba(139, 92, 246, 0.7)', 'rgba(236, 72, 153, 0.7)'],
+                            borderColor: ['rgb(22, 163, 163)', 'rgb(234, 88, 12)', 'rgb(220, 38, 38)', 'rgb(79, 70, 229)', 'rgb(147, 51, 234)', 'rgb(217, 119, 6)', 'rgb(5, 150, 105)', 'rgb(59, 130, 246)', 'rgb(139, 92, 246)', 'rgb(236, 72, 153)'],
+                            borderWidth: 1, borderRadius: 5,
+                        }]
+                    }, options: { animation: { duration: 500 }, responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 20000, grid: { color: '#e5e7eb' } }, x: { grid: { display: false } } } } });
+                    
+                    if(chartUpdateInterval) clearInterval(chartUpdateInterval);
+                    chartUpdateInterval = setInterval(updateChartData, 2000);
+                }, 1500);
+            }
+            
+            function updateChartData() {
+                if (!breedChart || document.getElementById('dashboard-view').classList.contains('hidden')) {
+                    if (chartUpdateInterval) clearInterval(chartUpdateInterval);
+                    return;
+                }
+                const data = breedChart.data.datasets[0].data;
+                const randomIndex = Math.floor(Math.random() * data.length);
+                const increment = Math.floor(Math.random() * 91) + 10;
+                data[randomIndex] += increment;
+                breedChart.update();
+                let currentTotal = parseInt(totalAnimalsEl.innerText.replace(/,/g, ''));
+                currentTotal += increment;
+                totalAnimalsEl.innerText = currentTotal.toLocaleString('en-IN');
+            }
+
+            // --- All Views Data & Logic ---
+            const locationData = {
+                "Andaman and Nicobar Islands": { coords: [11.7401, 92.6586], zoom: 9, districts: ["Nicobar", "North and Middle Andaman", "South Andaman"] },
+                "Andhra Pradesh": { coords: [15.9129, 79.7400], zoom: 7, districts: ["Anantapur", "Chittoor", "East Godavari", "Guntur", "Krishna", "Kurnool", "Prakasam", "Srikulam", "Visakhapatnam", "West Godavari", "Y.S.R. Kadapa"] },
+                "Arunachal Pradesh": { coords: [28.2180, 94.7278], zoom: 7, districts: ["Tawang", "West Kameng", "East Kameng", "Papum Pare", "Kurung Kumey", "Kra Daadi", "Lower Subansiri", "Upper Subansiri", "West Siang", "East Siang", "Siang", "Upper Siang", "Lower Siang", "Lower Dibang Valley", "Dibang Valley", "Anjaw", "Lohit", "Namsai", "Changlang", "Tirap", "Longding"] },
+                "Assam": { coords: [26.2006, 92.9376], zoom: 7, districts: ["Baksa", "Barpeta", "Biswanath", "Bongaigaon", "Cachar", "Charaideo", "Chirang", "Darrang", "Dhemaji", "Dhubri", "Dibrugarh", "Dima Hasao", "Goalpara", "Golaghat", "Hailakandi", "Hojai", "Jorhat", "Kamrup", "Kamrup Metropolitan", "Karbi Anglong", "Karimganj", "Kokrajhar", "Lakhimpur", "Majuli", "Morigaon", "Nagaon", "Nalbari", "Sivasagar", "Sonitpur", "South Salmara-Mankachar", "Tinsukia", "Udalguri", "West Karbi Anglong"] },
+                "Bihar": { coords: [25.0961, 85.3131], zoom: 7, districts: ["Araria", "Arwal", "Aurangabad", "Banka", "Begusarai", "Bhagalpur", "Bhojpur", "Buxar", "Darbhanga", "East Champaran", "Gaya", "Gopalganj", "Jamui", "Jehanabad", "Kaimur", "Katihar", "Khagaria", "Kishanganj", "Lakhisarai", "Madhepura", "Madhubani", "Munger", "Muzaffarpur", "Nalanda", "Nawada", "Patna", "Purnia", "Rohtas", "Saharsa", "Samastipur", "Saran", "Sheikhpura", "Sheohar", "Sitamarhi", "Siwan", "Supaul", "Vaishali", "West Champaran"] },
+                "Chandigarh": { coords: [30.7333, 76.7794], zoom: 12, districts: ["Chandigarh"] },
+                "Chhattisgarh": { coords: [21.2787, 81.8661], zoom: 7, districts: ["Balod", "Baloda Bazar", "Balrampur", "Bastar", "Bemetara", "Bijapur", "Bilaspur", "Dantewada", "Dhamtari", "Durg", "Gariaband", "Janjgir-Champa", "Jashpur", "Kabirdham", "Kanker", "Kondagaon", "Korba", "Koriya", "Mahasamund", "Mungeli", "Narayanpur", "Raigarh", "Raipur", "Rajnandgaon", "Sukma", "Surajpur", "Surguja"] },
+                "Dadra and Nagar Haveli and Daman and Diu": { coords: [20.1809, 73.0169], zoom: 9, districts: ["Dadra and Nagar Haveli", "Daman", "Diu"] },
+                "Delhi": { coords: [28.7041, 77.1025], zoom: 10, districts: ["Central Delhi", "East Delhi", "New Delhi", "North Delhi", "North East Delhi", "North West Delhi", "Shahdara", "South Delhi", "South East Delhi", "South West Delhi", "West Delhi"] },
+                "Goa": { coords: [15.2993, 74.1240], zoom: 9, districts: ["North Goa", "South Goa"] },
+                "Gujarat": { coords: [22.2587, 71.1924], zoom: 7, districts: ["Ahmedabad", "Amreli", "Anand", "Aravalli", "Banaskantha", "Bharuch", "Bhavnagar", "Botad", "Chhota Udaipur", "Dahod", "Dang", "Devbhoomi Dwarka", "Gandhinagar", "Gir Somnath", "Jamnagar", "Junagadh", "Kheda", "Kutch", "Mahisagar", "Mehsana", "Morbi", "Narmada", "Navsari", "Panchmahal", "Patan", "Porbandar", "Rajkot", "Sabarkantha", "Surat", "Surendranagar", "Tapi", "Vadodara", "Valsad"] },
+                "Haryana": { coords: [29.0588, 76.0856], zoom: 8, districts: ["Ambala", "Bhiwani", "Charkhi Dadri", "Faridabad", "Fatehabad", "Gurugram", "Hisar", "Jhajjar", "Jind", "Kaithal", "Karnal", "Kurukshetra", "Mahendragarh", "Nuh", "Palwal", "Panchkula", "Panipat", "Rewari", "Rohtak", "Sirsa", "Sonipat", "Yamunanagar"] },
+                "Himachal Pradesh": { coords: [31.1048, 77.1734], zoom: 8, districts: ["Bilaspur", "Chamba", "Hamirpur", "Kangra", "Kinnaur", "Kullu", "Lahaul and Spiti", "Mandi", "Shimla", "Sirmaur", "Solan", "Una"] },
+                "Jammu and Kashmir": { coords: [33.7782, 76.5762], zoom: 7, districts: ["Anantnag", "Bandipora", "Baramulla", "Budgam", "Doda", "Ganderbal", "Jammu", "Kathua", "Kishtwar", "Kulgam", "Kupwara", "Poonch", "Pulwama", "Rajouri", "Ramban", "Reasi", "Samba", "Shopian", "Srinagar", "Udhampur"] },
+                "Jharkhand": { coords: [23.6102, 85.2799], zoom: 7, districts: ["Bokaro", "Chatra", "Deoghar", "Dhanbad", "Dumka", "East Singhbhum", "Garhwa", "Giridih", "Godda", "Gumla", "Hazaribagh", "Jamtara", "Khunti", "Koderma", "Latehar", "Lohardaga", "Pakur", "Palamu", "Ramgarh", "Ranchi", "Sahebganj", "Seraikela Kharsawan", "Simdega", "West Singhbhum"] },
+                "Karnataka": { coords: [15.3173, 75.7139], zoom: 7, districts: ["Bagalkot", "Ballari", "Belagavi", "Bengaluru Rural", "Bengaluru Urban", "Bidar", "Chamarajanagar", "Chikkaballapur", "Chikkamagaluru", "Chitradurga", "Dakshina Kannada", "Davanagere", "Dharwad", "Gadag", "Hassan", "Haveri", "Kalaburagi", "Kodagu", "Kolar", "Koppal", "Mandya", "Mysuru", "Raichur", "Ramanagara", "Shivamogga", "Tumakuru", "Udupi", "Uttara Kannada", "Vijayapura", "Yadgir"] },
+                "Kerala": { coords: [10.8505, 76.2711], zoom: 8, districts: ["Alappuzha", "Ernakulam", "Idukki", "Kannur", "Kasaragod", "Kollam", "Kottayam", "Kozhikode", "Malappuram", "Palakkad", "Pathanamthitta", "Thiruvananthapuram", "Thrissur", "Wayanad"] },
+                "Ladakh": { coords: [34.1526, 77.5771], zoom: 7, districts: ["Kargil", "Leh"] },
+                "Lakshadweep": { coords: [10.5667, 72.6417], zoom: 9, districts: ["Lakshadweep"] },
+                "Madhya Pradesh": { coords: [22.9734, 78.6569], zoom: 6, districts: ["Agar Malwa", "Alirajpur", "Anuppur", "Ashoknagar", "Balaghat", "Barwani", "Betul", "Bhind", "Bhopal", "Burhanpur", "Chhatarpur", "Chhindwara", "Damoh", "Datia", "Dewas", "Dhar", "Dindori", "Guna", "Gwalior", "Harda", "Hoshangabad", "Indore", "Jabalpur", "Jhabua", "Katni", "Khandwa", "Khargone", "Mandla", "Mandsaur", "Morena", "Narsinghpur", "Neemuch", "Panna", "Raisen", "Rajgarh", "Ratlam", "Rewa", "Sagar", "Satna", "Sehore", "Seoni", "Shahdol", "Shajapur", "Sheopur", "Shivpuri", "Sidhi", "Singrauli", "Tikamgarh", "Ujjain", "Umaria", "Vidisha"] },
+                "Maharashtra": { coords: [19.7515, 75.7139], zoom: 6, districts: ["Ahmednagar", "Akola", "Amravati", "Aurangabad", "Beed", "Bhandara", "Buldhana", "Chandrapur", "Dhule", "Gadchiroli", "Gondia", "Hingoli", "Jalgaon", "Jalna", "Kolhapur", "Latur", "Mumbai City", "Mumbai Suburban", "Nagpur", "Nanded", "Nandurbar", "Nashik", "Osmanabad", "Palghar", "Parbhani", "Pune", "Raigad", "Ratnagiri", "Sangli", "Satara", "Sindhudurg", "Solapur", "Thane", "Wardha", "Washim", "Yavatmal"] },
+                "Manipur": { coords: [24.6637, 93.9063], zoom: 8, districts: ["Bishnupur", "Chandel", "Churachandpur", "Imphal East", "Imphal West", "Jiribam", "Kakching", "Kamjong", "Kangpokpi", "Noney", "Pherzawl", "Senapati", "Tamenglong", "Tengnoupal", "Thoubal", "Ukhrul"] },
+                "Meghalaya": { coords: [25.4670, 91.3662], zoom: 8, districts: ["East Garo Hills", "East Jaintia Hills", "East Khasi Hills", "North Garo Hills", "Ri Bhoi", "South Garo Hills", "South West Garo Hills", "South West Khasi Hills", "West Garo Hills", "West Jaintia Hills", "West Khasi Hills"] },
+                "Mizoram": { coords: [23.1645, 92.9376], zoom: 8, districts: ["Aizawl", "Champhai", "Kolasib", "Lawngtlai", "Lunglei", "Mamit", "Saiha", "Serchhip"] },
+                "Nagaland": { coords: [26.1584, 94.5624], zoom: 8, districts: ["Dimapur", "Kiphire", "Kohima", "Longleng", "Mokokchung", "Mon", "Peren", "Phek", "Tuensang", "Wokha", "Zunheboto"] },
+                "Odisha": { coords: [20.9517, 85.0985], zoom: 7, districts: ["Angul", "Balangir", "Balasore", "Bargarh", "Bhadrak", "Boudh", "Cuttack", "Deogarh", "Dhenkanal", "Gajapati", "Ganjam", "Jagatsinghpur", "Jajpur", "Jharsuguda", "Kalahandi", "Kandhamal", "Kendrapara", "Kendujhar", "Khordha", "Koraput", "Malkangiri", "Mayurbhanj", "Nabarangpur", "Nayagarh", "Nuapada", "Puri", "Rayagada", "Sambalpur", "Sonepur", "Sundargarh"] },
+                "Puducherry": { coords: [11.9416, 79.8083], zoom: 10, districts: ["Karaikal", "Mahe", "Puducherry", "Yanam"] },
+                "Punjab": { coords: [31.1471, 75.3412], zoom: 8, districts: ["Amritsar", "Barnala", "Bathinda", "Faridkot", "Fatehgarh Sahib", "Fazilka", "Ferozepur", "Gurdaspur", "Hoshiarpur", "Jalandhar", "Kapurthala", "Ludhiana", "Mansa", "Moga", "Muktsar", "Pathankot", "Patiala", "Rupnagar", "Sahibzada Ajit Singh Nagar", "Sangrur", "Shahid Bhagat Singh Nagar", "Tarn Taran"] },
+                "Rajasthan": { coords: [27.0238, 74.2179], zoom: 6, districts: ["Ajmer", "Alwar", "Banswara", "Baran", "Barmer", "Bharatpur", "Bhilwara", "Bikaner", "Bundi", "Chittorgarh", "Churu", "Dausa", "Dholpur", "Dungarpur", "Hanumangarh", "Jaipur", "Jaisalmer", "Jalore", "Jhalawar", "Jhunjhunu", "Jodhpur", "Karauli", "Kota", "Nagaur", "Pali", "Pratapgarh", "Rajsamand", "Sawai Madhopur", "Sikar", "Sirohi", "Sri Ganganagar", "Tonk", "Udaipur"] },
+                "Sikkim": { coords: [27.5330, 88.5122], zoom: 9, districts: ["East Sikkim", "North Sikkim", "South Sikkim", "West Sikkim"] },
+                "Tamil Nadu": { coords: [11.1271, 78.6569], zoom: 7, districts: ["Ariyalur", "Chengalpattu", "Chennai", "Coimbatore", "Cuddalore", "Dharmapuri", "Dindigul", "Erode", "Kallakurichi", "Kanchipuram", "Kanyakumari", "Karur", "Krishnagiri", "Madurai", "Nagapattinam", "Namakkal", "Nilgiris", "Perambalur", "Pudukkottai", "Ramanathapuram", "Ranipet", "Salem", "Sivaganga", "Tenkasi", "Thanjavur", "Theni", "Thoothukudi", "Tiruchirappalli", "Tirunelveli", "Tirupathur", "Tiruppur", "Tiruvallur", "Tiruvannamalai", "Tiruvarur", "Vellore", "Viluppuram", "Virudhunagar"] },
+                "Telangana": { coords: [18.1124, 79.0193], zoom: 8, districts: ["Adilabad", "Bhadradri Kothagudem", "Hyderabad", "Jagtial", "Jangaon", "Jayashankar Bhupalpally", "Jogulamba Gadwal", "Kamareddy", "Karimnagar", "Khammam", "Komaram Bheem", "Mahabubabad", "Mahabubnagar", "Mancherial", "Medak", "Medchal-Malkajgiri", "Nagarkurnool", "Nalgonda", "Nirmal", "Nizamabad", "Peddapalli", "Rajanna Sircilla", "Rangareddy", "Sangareddy", "Siddipet", "Suryapet", "Vikarabad", "Wanaparthy", "Warangal Rural", "Warangal Urban", "Yadadri Bhuvanagiri"] },
+                "Tripura": { coords: [23.9408, 91.9882], zoom: 9, districts: ["Dhalai", "Gomati", "Khowai", "North Tripura", "Sepahijala", "South Tripura", "Unakoti", "West Tripura"] },
+                "Uttar Pradesh": { coords: [26.8467, 80.9462], zoom: 6, districts: ["Agra", "Aligarh", "Ambedkar Nagar", "Amethi", "Amroha", "Auraiya", "Ayodhya", "Azamgarh", "Baghpat", "Bahraich", "Ballia", "Balrampur", "Banda", "Barabanki", "Bareilly", "Basti", "Bhadohi", "Bijnor", "Budaun", "Bulandshahr", "Chandauli", "Chitrakoot", "Deoria", "Etah", "Etawah", "Farrukhabad", "Fatehpur", "Firozabad", "Gautam Buddh Nagar", "Ghaziabad", "Ghazipur", "Gonda", "Gorakhpur", "Hamirpur", "Hapur", "Hardoi", "Hathras", "Jalaun", "Jaunpur", "Jhansi", "Kannauj", "Kanpur Dehat", "Kanpur Nagar", "Kasganj", "Kaushambi", "Kheri", "Kushinagar", "Lalitpur", "Lucknow", "Maharajganj", "Mahoba", "Mainpuri", "Mathura", "Mau", "Meerut", "Mirzapur", "Moradabad", "Muzaffarnagar", "Pilibhit", "Pratapgarh", "Prayagraj", "Raebareli", "Rampur", "Saharanpur", "Sambhal", "Sant Kabir Nagar", "Shahjahanpur", "Shamli", "Shravasti", "Siddharthnagar", "Sitapur", "Sonbhadra", "Sultanpur", "Unnao", "Varanasi"] },
+                "Uttarakhand": { coords: [30.0668, 79.0193], zoom: 8, districts: ["Almora", "Bageshwar", "Chamoli", "Champawat", "Dehradun", "Haridwar", "Nainital", "Pauri Garhwal", "Pithoragarh", "Rudraprayag", "Tehri Garhwal", "Udham Singh Nagar", "Uttarkashi"] },
+                "West Bengal": { coords: [22.9868, 87.8550], zoom: 7, districts: ["Alipurduar", "Bankura", "Birbhum", "Cooch Behar", "Dakshin Dinajpur", "Darjeeling", "Hooghly", "Howrah", "Jalpaiguri", "Jhargram", "Kalimpong", "Kolkata", "Malda", "Murshidabad", "Nadia", "North 24 Parganas", "Paschim Bardhaman", "Paschim Medinipur", "Purba Bardhaman", "Purba Medinipur", "Purulia", "South 24 Parganas", "Uttar Dinajpur"] }
+            };
+            const animalMapData = {
+                "Anand": [{ lat: 22.5645, lng: 72.9289, breed: 'Gir', count: 250, timestamp: '2025-09-18 14:30' }],
+                "Junagadh": [{ lat: 21.5222, lng: 70.4579, breed: 'Gir', count: 350, timestamp: '2025-09-17 11:00' }],
+                "Rohtak": [{ lat: 28.8955, lng: 76.6066, breed: 'Murrah', count: 400, timestamp: '2025-09-18 19:28' }],
+                "Hisar": [{ lat: 29.1492, lng: 75.7217, breed: 'Murrah', count: 310, timestamp: '2025-09-16 09:15' }, { lat: 29.15, lng: 75.73, breed: 'Sahiwal', count: 50, timestamp: '2025-09-15 12:00' }],
+                "Ludhiana": [{ lat: 30.9010, lng: 75.8573, breed: 'Sahiwal', count: 320, timestamp: '2025-09-18 19:15' }],
+                "Khammam": [{ lat: 17.2473, lng: 80.1514, breed: 'Red Sindhi', count: 180, timestamp: '2025-09-15 18:00' }],
+                "Kolkata": [{ lat: 22.5726, lng: 88.3639, breed: 'Crossbred', count: 500, timestamp: '2025-09-17 17:45' }],
+                "Jaipur": [{ lat: 26.9124, lng: 75.7873, breed: 'Tharparkar', count: 280, timestamp: '2025-09-18 10:00' }],
+                "Jodhpur": [{ lat: 26.2389, lng: 73.0243, breed: 'Tharparkar', count: 190, timestamp: '2025-09-16 16:20' }],
+                "Pune": [{ lat: 18.5204, lng: 73.8567, breed: 'Deoni', count: 150, timestamp: '2025-09-14 13:00' }]
+            };
+
+            // --- Geospatial View Specific Logic ---
+            let geospatialMap;
+            
+            function initGeospatialView() {
+                setupSearchableDropdown('state', Object.keys(locationData), 'geospatial');
+                setupSearchableDropdown('district', [], 'geospatial');
+
+                document.getElementById('filter-btn').addEventListener('click', applyMapFilter);
+                
+                setTimeout(() => {
+                    if (!geospatialMap) {
+                         geospatialMap = L.map('geospatialMap').setView([22.5937, 78.9629], 5);
+                         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(geospatialMap);
+                    }
+                }, 100);
+            }
+
+            let mapMarkers = [];
+            function applyMapFilter() {
+                const state = document.getElementById('state-search').value;
+                const district = document.getElementById('district-search').value;
+                const summaryContainer = document.getElementById('geospatial-summary');
+
+                mapMarkers.forEach(marker => geospatialMap.removeLayer(marker));
+                mapMarkers = [];
+
+                let dataForSummary = [];
+                let markerCoords = [];
+                let fallbackZoomTarget = null;
+                let fallbackZoomLevel = 5;
+
+                if (district && state && locationData[state]) {
+                    const districtData = animalMapData[district] || [];
+                    if(districtData.length > 0) {
+                        dataForSummary = districtData;
+                    } 
+                    fallbackZoomTarget = locationData[state].coords;
+                    fallbackZoomLevel = locationData[state].zoom;
+
+                } else if (state && locationData[state]) {
+                    const districtsInState = locationData[state].districts || [];
+                    districtsInState.forEach(dist => {
+                        if (animalMapData[dist]) {
+                            dataForSummary.push(...animalMapData[dist]);
+                        }
+                    });
+                    fallbackZoomTarget = locationData[state].coords;
+                    fallbackZoomLevel = locationData[state].zoom;
+                }
+                
+                dataForSummary.forEach(d => {
+                    const marker = L.marker([d.lat, d.lng]).addTo(geospatialMap)
+                       .bindPopup(`<b>${d.breed}</b><br>${d.count.toLocaleString('en-IN')} registered.`);
+                    mapMarkers.push(marker);
+                    markerCoords.push([d.lat, d.lng]);
+                });
+
+                if (markerCoords.length > 1) {
+                    const bounds = L.latLngBounds(markerCoords);
+                    geospatialMap.fitBounds(bounds.pad(0.2));
+                } else if (markerCoords.length === 1) {
+                    geospatialMap.setView(markerCoords[0], 13);
+                }
+                else if (fallbackZoomTarget) {
+                    geospatialMap.setView(fallbackZoomTarget, fallbackZoomLevel);
+                }
+
+                if (dataForSummary.length > 0) {
+                    const total = dataForSummary.reduce((acc, item) => acc + item.count, 0);
+                    
+                    const breedCounts = dataForSummary.reduce((acc, item) => {
+                        acc[item.breed] = (acc[item.breed] || 0) + item.count;
+                        return acc;
+                    }, {});
+                    const mostCommonBreed = Object.keys(breedCounts).length > 0 
+                        ? Object.keys(breedCounts).reduce((a, b) => breedCounts[a] > breedCounts[b] ? a : b) 
+                        : 'N/A';
+
+                    const latestDate = dataForSummary.reduce((latest, item) => {
+                        const itemDate = new Date(item.timestamp);
+                        return itemDate > latest ? itemDate : latest;
+                    }, new Date(0));
+
+                    document.getElementById('summary-total').textContent = total.toLocaleString('en-IN');
+                    document.getElementById('summary-breed').textContent = mostCommonBreed;
+                    document.getElementById('summary-date').textContent = latestDate.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' });
+
+                    summaryContainer.classList.remove('hidden');
+                } else {
+                    document.getElementById('summary-total').textContent = '0';
+                    document.getElementById('summary-breed').textContent = 'N/A';
+                    document.getElementById('summary-date').textContent = 'N/A';
+                    summaryContainer.classList.remove('hidden');
+                }
+            }
+            
+            // --- Reports View Specific Logic ---
+            function initReportsView() {
+                setupSearchableDropdown('state', Object.keys(locationData), 'report');
+                setupSearchableDropdown('district', [], 'report');
+                document.getElementById('generate-report-btn').addEventListener('click', generateReport);
+            }
+
+            function generateReport() {
+                const reportStatus = document.getElementById('report-status');
+                const reportSpinner = document.getElementById('report-spinner');
+                const reportSuccess = document.getElementById('report-success');
+                
+                reportStatus.classList.remove('hidden');
+                reportSpinner.classList.remove('hidden');
+                reportSuccess.classList.add('hidden');
+
+                setTimeout(() => {
+                    const reportType = document.getElementById('report-type').value;
+                    const location = document.getElementById('report-district-search').value || document.getElementById('report-state-search').value || 'All India';
+                    
+                    document.getElementById('report-success-message').textContent = `Your '${reportType}' report for '${location}' is ready for download.`;
+                    
+                    reportSpinner.classList.add('hidden');
+                    reportSuccess.classList.remove('hidden');
+
+                }, 2000);
+            }
+
+            // --- Field Workers View Specific Logic ---
+            const confirmationModal = document.getElementById('confirmation-modal');
+            const editWorkerModal = document.getElementById('edit-worker-modal');
+            const editWorkerForm = document.getElementById('edit-worker-form');
+            const addWorkerModal = document.getElementById('add-worker-modal');
+            const addWorkerForm = document.getElementById('add-worker-form');
+            const addWorkerBtn = document.getElementById('add-worker-btn');
+
+            function initWorkersView() {
+                addWorkerBtn.addEventListener('click', openAddModal);
+                document.querySelectorAll('#worker-table-body .action-cell button').forEach(btn => {
+                    btn.addEventListener('click', handleWorkerAction);
+                });
+
+                document.getElementById('modal-cancel-btn').addEventListener('click', () => confirmationModal.classList.add('hidden'));
+                document.getElementById('edit-modal-cancel-btn').addEventListener('click', () => editWorkerModal.classList.add('hidden'));
+                document.getElementById('add-modal-cancel-btn').addEventListener('click', () => addWorkerModal.classList.add('hidden'));
+                
+                addWorkerForm.addEventListener('submit', saveNewWorker);
+            }
+            
+            function openAddModal() {
+                addWorkerForm.reset();
+                setupSearchableDropdown('state', Object.keys(locationData), 'add');
+                setupSearchableDropdown('district', [], 'add');
+                document.getElementById('add-district-search').disabled = true;
+                addWorkerModal.classList.remove('hidden');
+            }
+
+            function saveNewWorker(e) {
+                e.preventDefault();
+                const name = document.getElementById('add-worker-name').value;
+                const state = document.getElementById('add-state-search').value;
+                const district = document.getElementById('add-district-search').value;
+                
+                const tableBody = document.getElementById('worker-table-body');
+                const lastRow = tableBody.rows[tableBody.rows.length - 1];
+                const lastId = lastRow ? lastRow.cells[0].textContent : 'FW-1026';
+                const newIdNum = parseInt(lastId.split('-')[1]) + 1;
+                const newId = `FW-${newIdNum}`;
+
+                const newRow = tableBody.insertRow();
+                newRow.innerHTML = `
+                    <td class="p-4 font-medium">${newId}</td>
+                    <td class="p-4">${name}</td>
+                    <td class="p-4">${district}, ${state}</td>
+                    <td class="p-4">0</td>
+                    <td class="p-4 status-cell"><span class="bg-green-100 text-green-700 py-1 px-3 rounded-full text-xs font-semibold">Active</span></td>
+                    <td class="p-4 text-center space-x-2 action-cell">
+                        <button class="text-blue-500 hover:text-blue-700" title="Edit Worker"><i class="fas fa-edit"></i></button>
+                        <button class="text-red-500 hover:text-red-700" title="Deactivate Worker"><i class="fas fa-user-slash"></i></button>
+                    </td>
+                `;
+
+                newRow.querySelectorAll('.action-cell button').forEach(btn => {
+                    btn.addEventListener('click', handleWorkerAction);
+                });
+
+                addWorkerModal.classList.add('hidden');
+            }
+
+            function handleWorkerAction(event) {
+                const button = event.currentTarget;
+                const row = button.closest('tr');
+                const workerName = row.cells[1].textContent;
+                let action = '';
+
+                if (button.title.includes('Edit')) action = 'edit';
+                else if (button.title.includes('Deactivate')) action = 'deactivate';
+                else if (button.title.includes('Activate')) action = 'activate';
+
+                if (action === 'edit') {
+                    openEditModal(row);
+                } else {
+                    showConfirmationModal(action, workerName, row);
+                }
+            }
+            
+            function openEditModal(row) {
+                const id = row.cells[0].textContent;
+                const name = row.cells[1].textContent;
+                const area = row.cells[2].textContent.split(', ');
+                const district = area[0];
+                const state = area[1];
+
+                document.getElementById('edit-worker-id').value = id;
+                document.getElementById('edit-worker-name').value = name;
+                document.getElementById('edit-state-search').value = state;
+                document.getElementById('edit-district-search').value = district;
+
+                setupSearchableDropdown('state', Object.keys(locationData), 'edit');
+                if (state && locationData[state]) {
+                    document.getElementById('edit-district-search').disabled = false;
+                    setupSearchableDropdown('district', locationData[state].districts, 'edit');
+                } else {
+                    document.getElementById('edit-district-search').disabled = true;
+                    setupSearchableDropdown('district', [], 'edit');
+                }
+                
+                editWorkerModal.classList.remove('hidden');
+
+                editWorkerForm.onsubmit = (e) => {
+                    e.preventDefault();
+                    saveWorkerChanges(row);
+                };
+            }
+
+            function saveWorkerChanges(row) {
+                const newName = document.getElementById('edit-worker-name').value;
+                const newState = document.getElementById('edit-state-search').value;
+                const newDistrict = document.getElementById('edit-district-search').value;
+
+                row.cells[1].textContent = newName;
+                row.cells[2].textContent = `${newDistrict}, ${newState}`;
+                
+                editWorkerModal.classList.add('hidden');
+                editWorkerForm.onsubmit = null;
+            }
+
+            function showConfirmationModal(action, workerName, row) {
+                confirmationModal.classList.remove('hidden');
+                let message = '';
+                switch(action) {
+                    case 'deactivate':
+                        message = `Are you sure you want to deactivate ${workerName}? Their access will be revoked.`;
+                        break;
+                    case 'activate':
+                         message = `Are you sure you want to activate ${workerName}? They will regain access.`;
+                        break;
+                }
+                document.getElementById('modal-body').textContent = message;
+
+                const confirmBtn = document.getElementById('modal-confirm-btn');
+                
+                const actionHandler = () => {
+                    performStatusAction(action, row);
+                    confirmationModal.classList.add('hidden');
+                };
+
+                confirmBtn.addEventListener('click', actionHandler, { once: true });
+                document.getElementById('modal-cancel-btn').addEventListener('click', () => {
+                    confirmBtn.removeEventListener('click', actionHandler);
+                }, { once: true });
+            }
+
+            function performStatusAction(action, row) {
+                const statusCell = row.querySelector('.status-cell span');
+                const actionCell = row.querySelector('.action-cell');
+                const isActivating = action === 'activate';
+
+                statusCell.textContent = isActivating ? 'Active' : 'Inactive';
+                statusCell.className = `py-1 px-3 rounded-full text-xs font-semibold ${isActivating ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`;
+                
+                const statusButton = actionCell.querySelector('.fa-user-slash, .fa-user-check').parentElement;
+                if (isActivating) {
+                    statusButton.title = 'Deactivate Worker';
+                    statusButton.innerHTML = '<i class="fas fa-user-slash"></i>';
+                    statusButton.className = 'text-red-500 hover:text-red-700';
+                } else {
+                    statusButton.title = 'Activate Worker';
+                    statusButton.innerHTML = '<i class="fas fa-user-check"></i>';
+                    statusButton.className = 'text-green-500 hover:text-green-700';
+                }
+            }
+
+
+            // --- Generic Searchable Dropdown Logic ---
+            function getPrefix(context) {
+                if (context === 'report') return 'report-';
+                if (context === 'edit') return 'edit-';
+                if (context === 'add') return 'add-';
+                return ''; // Default for geospatial
+            }
+            
+            function setupSearchableDropdown(type, items, context) {
+                const prefix = getPrefix(context);
+                const searchInput = document.getElementById(`${prefix}${type}-search`);
+                const listContainer = document.getElementById(`${prefix}${type}-list`);
+                
+                if (!searchInput || !listContainer) return;
+
+                searchInput.addEventListener('focus', () => listContainer.classList.remove('hidden'));
+                searchInput.addEventListener('input', () => filterList(type, items, context));
+
+                listContainer.innerHTML = '';
+                items.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'p-2 hover:bg-gray-100 cursor-pointer';
+                    div.textContent = item;
+                    div.addEventListener('click', () => selectItem(type, item, context));
+                    listContainer.appendChild(div);
+                });
+            }
+
+            function filterList(type, originalItems, context) {
+                const prefix = getPrefix(context);
+                const searchTerm = document.getElementById(`${prefix}${type}-search`).value.toLowerCase();
+                const listContainer = document.getElementById(`${prefix}${type}-list`);
+                listContainer.innerHTML = '';
+                originalItems
+                    .filter(item => item.toLowerCase().includes(searchTerm))
+                    .forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'p-2 hover:bg-gray-100 cursor-pointer';
+                        div.textContent = item;
+                        div.addEventListener('click', () => selectItem(type, item, context));
+                        listContainer.appendChild(div);
+                    });
+            }
+            
+            function selectItem(type, value, context) {
+                const prefix = getPrefix(context);
+                const searchInput = document.getElementById(`${prefix}${type}-search`);
+                const listContainer = document.getElementById(`${prefix}${type}-list`);
+                searchInput.value = value;
+                listContainer.classList.add('hidden');
+                
+                if (type === 'state') {
+                    const districtSearch = document.getElementById(`${prefix}district-search`);
+                    districtSearch.disabled = false;
+                    districtSearch.value = '';
+                    const districts = locationData[value]?.districts || [];
+                    setupSearchableDropdown('district', districts, context);
+                }
+            }
+
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', function(e) {
+                const dropdownContainers = [
+                    'state-dropdown-container', 'district-dropdown-container',
+                    'report-state-container', 'report-district-container',
+                    'edit-state-container', 'edit-district-container',
+                    'add-state-container', 'add-district-container'
+                ];
+                dropdownContainers.forEach(id => {
+                     const container = document.getElementById(id);
+                     if (container && !container.contains(e.target)) {
+                        const list = container.querySelector('.searchable-dropdown-list');
+                        if (list) list.classList.add('hidden');
+                    }
+                });
+            });
+
+
+            // Observer to initialize logic only when a view becomes visible
+            const viewObserver = new MutationObserver((mutations) => {
+                for (let mutation of mutations) {
+                    if (mutation.attributeName === 'class' && !mutation.target.classList.contains('hidden')) {
+                        const viewId = mutation.target.id;
+                        if (viewId === 'dashboard-view') initDashboard();
+                        if (viewId === 'geospatial-view') initGeospatialView();
+                        if (viewId === 'reports-view') initReportsView();
+                        if (viewId === 'workers-view') initWorkersView();
+                    }
+                }
+            });
+
+            views.forEach(view => viewObserver.observe(view, { attributes: true }));
+
+            // Initial trigger
+            const currentHash = window.location.hash || '#dashboard';
+            switchView(currentHash);
+            if(currentHash === '#dashboard') initDashboard();
+            if(currentHash === '#geospatial') initGeospatialView();
+            if(currentHash === '#reports') initReportsView();
+            if(currentHash === '#workers') initWorkersView();
+        });
+    </script>
+
+</body>
+</html>
+
